@@ -75,9 +75,9 @@ export class HeroService {
 
     heroesResponse$ = this.params$.pipe(
         debounceTime(500),
-        switchMap(_params =>
+        switchMap(params =>
             this.http.get(HERO_API, {
-                params: _params,
+                params,
             }),
         ),
         shareReplay(1),
