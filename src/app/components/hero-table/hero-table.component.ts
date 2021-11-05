@@ -9,17 +9,11 @@ import { DEFAULT_PAGE, Hero, HeroService } from '../../services/hero.service';
     styleUrls: ['./hero-table.component.scss'],
 })
 export class HeroTableComponent implements OnInit {
-    heroes$ = this.hero.heroes$;
-    page$ = this.hero.userPage$;
-    totalResults$ = this.hero.totalResults$;
-    totalPages$ = this.hero.totalPages$;
-    limit$ = this.hero.limitBS;
-
     vm$ = combineLatest([
         this.hero.heroes$,
-        this.hero.searchBS,
+        this.hero.search$,
         this.hero.userPage$,
-        this.hero.limitBS,
+        this.hero.limit$,
         this.hero.totalResults$,
         this.hero.totalPages$,
     ]).pipe(
@@ -38,19 +32,15 @@ export class HeroTableComponent implements OnInit {
     constructor(public hero: HeroService) {}
 
     ngOnInit() {}
-
     setLimit(limit) {
-        this.hero.limitBS.next(limit);
-        this.hero.pageBS.next(DEFAULT_PAGE);
+        this.hero.setLimit(limit);
     }
 
     doSearch(event: KeyboardEvent) {
-        this.hero.searchBS.next((event.target as HTMLInputElement).value);
-        this.hero.pageBS.next(0);
+        this.hero.doSearch((event.target as HTMLInputElement).value);
     }
 
     movePageBy(moveBy: number) {
-        const currentPage = this.hero.pageBS.getValue();
-        this.hero.pageBS.next(currentPage + moveBy);
+        this.hero.movePageBy(moveBy);
     }
 }

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { combineLatest } from 'rxjs';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { debounceTime, map, shareReplay, switchMap } from 'rxjs/operators';
+import { debounceTime, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface Hero {
@@ -52,12 +52,23 @@ export const DEFAULT_PAGE = 0;
 export class HeroService {
     limits = LIMITS;
     _limit = LIMIT_LOW;
-    searchBS = new BehaviorSubject(DEFAULT_SEARCH);
-    limitBS = new BehaviorSubject(DEFAULT_LIMIT);
-    pageBS = new BehaviorSubject(DEFAULT_PAGE);
+    private searchBS = new BehaviorSubject(DEFAULT_SEARCH);
+    private limitBS = new BehaviorSubject(DEFAULT_LIMIT);
+    private pageBS = new BehaviorSubject(DEFAULT_PAGE);
+    private loadingBS = new BehaviorSubject(false);
+
+    search$ = this.searchBS.asObservable();
+    limit$ = this.limitBS.asObservable();
+    page$ = this.pageBS.asObservable();
+    loading = this.loadingBS.asObservable();
+
     userPage$ = this.pageBS.pipe(map(p => p + 1));
 
-    params$ = combineLatest([this.searchBS, this.limitBS, this.pageBS]).pipe(
+    private params$ = combineLatest([
+        this.searchBS,
+        this.limitBS,
+        this.pageBS,
+    ]).pipe(
         map(([searchTerm, limit, page]) => {
             const params = {
                 apikey: environment.MARVEL_API.PUBLIC_KEY,
@@ -75,11 +86,17 @@ export class HeroService {
 
     heroesResponse$ = this.params$.pipe(
         debounceTime(500),
+        tap(() => {
+            this.loadingBS.next(true);
+        }),
         switchMap(params =>
             this.http.get(HERO_API, {
                 params,
             }),
         ),
+        tap(() => {
+            this.loadingBS.next(false);
+        }),
         shareReplay(1),
     );
 
@@ -95,16 +112,17 @@ export class HeroService {
     constructor(private http: HttpClient) {}
 
     setLimit(limit) {
-        this._limit = limit;
-        return this.http
-            .get(HERO_API, {
-                params: {
-                    apikey: environment.MARVEL_API.PUBLIC_KEY,
-                    limit: `${this._limit}`,
-                    // nameStartsWith: 'hulk', // once we have search
-                    offset: `${0}`, // page * limit
-                },
-            })
-            .pipe(map((res: any) => res.data.results));
+        this.limitBS.next(limit);
+        this.pageBS.next(DEFAULT_PAGE);
+    }
+
+    doSearch(value: string) {
+        this.searchBS.next((event.target as HTMLInputElement).value);
+        this.pageBS.next(0);
+    }
+
+    movePageBy(moveBy: number) {
+        const currentPage = this.pageBS.getValue();
+        this.pageBS.next(currentPage + moveBy);
     }
 }
